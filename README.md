@@ -7,6 +7,8 @@ A Python utility for fuzzy image matching using a combination of ORB feature mat
 - Compare a query image against one or more candidate images or directories.
 - Combines multiple similarity metrics with configurable weights.
 - Command line interface for quick usage.
+- Minimal web UI for running comparisons without the terminal.
+
 
 ## Requirements
 
@@ -19,6 +21,12 @@ Install dependencies using pip:
 
 ```bash
 pip install opencv-python scikit-image numpy
+```
+
+For the optional web interface install Flask as well:
+
+```bash
+pip install flask
 ```
 
 ## Usage
@@ -43,6 +51,17 @@ python -m fuzzy_image_matching.cli ./examples/query.jpg ./examples/candidates --
 ```
 
 This will output the top three matches and show the individual metric contributions.
+
+
+
+Launch the browser-based interface with Flask:
+
+```bash
+python -m flask --app fuzzy_image_matching.webapp run
+```
+
+Then open <http://localhost:5000> to upload a query image and one or more candidate images. You can adjust the metric weights and number of results directly in the interface, and the page will display previews and detailed scores for the best matches.
+
 
 ## Project Structure
 
