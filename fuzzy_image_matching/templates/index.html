@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fuzzy Image Matcher</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        background: #f5f5f5;
+        color: #1f2933;
+      }
+
+      body {
+        margin: 0;
+        padding: 2rem 1rem 4rem;
+        display: flex;
+        justify-content: center;
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+        min-height: 100vh;
+      }
+
+      .container {
+        width: min(960px, 100%);
+        background: rgba(255, 255, 255, 0.92);
+        border-radius: 18px;
+        box-shadow: 0 18px 40px rgba(15, 35, 95, 0.12);
+        padding: 2.5rem;
+        backdrop-filter: blur(8px);
+      }
+
+      h1 {
+        margin-top: 0;
+        margin-bottom: 1.5rem;
+        font-size: clamp(2rem, 4vw, 2.8rem);
+        text-align: center;
+      }
+
+      form {
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      .form-row {
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      label {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #334e68;
+      }
+
+      input[type="file"],
+      input[type="number"] {
+        width: 100%;
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        border: 1px solid #cbd2d9;
+        background: #fff;
+        font-size: 1rem;
+        box-sizing: border-box;
+      }
+
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .weights-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 1rem;
+      }
+
+      .submit-row {
+        display: flex;
+        justify-content: center;
+      }
+
+      button {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+        color: #fff;
+        font-weight: 600;
+        font-size: 1rem;
+        border: none;
+        padding: 0.9rem 2.4rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.25);
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 32px rgba(37, 99, 235, 0.3);
+      }
+
+      .messages {
+        display: grid;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+
+      .message {
+        padding: 0.9rem 1.2rem;
+        border-radius: 12px;
+        background: #fee2e2;
+        color: #b91c1c;
+        border: 1px solid rgba(248, 113, 113, 0.45);
+      }
+
+      .results {
+        margin-top: 3rem;
+        display: grid;
+        gap: 2rem;
+      }
+
+      .results h2 {
+        margin: 0;
+        font-size: 1.75rem;
+      }
+
+      .preview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.5rem;
+      }
+
+      .preview-card {
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.12);
+        padding: 1.25rem;
+        display: grid;
+        gap: 0.85rem;
+      }
+
+      .preview-card img {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        border-radius: 12px;
+        border: 1px solid #e2e8f0;
+      }
+
+      .score {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1d4ed8;
+      }
+
+      .metrics {
+        font-size: 0.95rem;
+        color: #475569;
+        display: grid;
+        gap: 0.25rem;
+      }
+
+      .query-preview {
+        display: grid;
+        justify-items: center;
+        gap: 1rem;
+      }
+
+      .query-preview img {
+        width: min(320px, 100%);
+        border-radius: 16px;
+        border: 1px solid #cbd5f5;
+        box-shadow: 0 12px 26px rgba(59, 130, 246, 0.25);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          background: #0f172a;
+          color: #e2e8f0;
+        }
+
+        .container {
+          background: rgba(15, 23, 42, 0.85);
+          box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        label {
+          color: #cbd5f5;
+        }
+
+        input[type="file"],
+        input[type="number"] {
+          background: rgba(15, 23, 42, 0.85);
+          border: 1px solid #334155;
+          color: inherit;
+        }
+
+        .preview-card {
+          background: rgba(15, 23, 42, 0.8);
+          border: 1px solid #1e293b;
+        }
+
+        .message {
+          background: rgba(239, 68, 68, 0.15);
+          border-color: rgba(239, 68, 68, 0.35);
+          color: #fca5a5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Fuzzy Image Matcher</h1>
+      <form method="post" enctype="multipart/form-data">
+        <div class="form-row">
+          <label for="query">Query image</label>
+          <input id="query" type="file" name="query" accept="image/*" required />
+        </div>
+        <div class="form-row">
+          <label for="candidates">Candidate images</label>
+          <input
+            id="candidates"
+            type="file"
+            name="candidates"
+            accept="image/*"
+            multiple
+            required
+          />
+        </div>
+        <div class="weights-grid">
+          <div class="form-row">
+            <label for="weight_orb">ORB weight</label>
+            <input
+              id="weight_orb"
+              type="number"
+              name="weight_orb"
+              step="0.05"
+              min="0"
+              value="{{ '%.2f'|format(weights[0]) }}"
+            />
+          </div>
+          <div class="form-row">
+            <label for="weight_hist">Histogram weight</label>
+            <input
+              id="weight_hist"
+              type="number"
+              name="weight_hist"
+              step="0.05"
+              min="0"
+              value="{{ '%.2f'|format(weights[1]) }}"
+            />
+          </div>
+          <div class="form-row">
+            <label for="weight_ssim">SSIM weight</label>
+            <input
+              id="weight_ssim"
+              type="number"
+              name="weight_ssim"
+              step="0.05"
+              min="0"
+              value="{{ '%.2f'|format(weights[2]) }}"
+            />
+          </div>
+          <div class="form-row">
+            <label for="top">Top results</label>
+            <input
+              id="top"
+              type="number"
+              name="top"
+              min="1"
+              value="{{ top }}"
+            />
+          </div>
+        </div>
+        <div class="submit-row">
+          <button type="submit">Compare images</button>
+        </div>
+      </form>
+
+      {% if errors %}
+        <div class="messages">
+          {% for message in errors %}
+            <div class="message">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if results is not none %}
+        <section class="results">
+          <div class="query-preview">
+            <h2>Query preview</h2>
+            {% if query_preview %}
+              <img src="{{ query_preview }}" alt="Uploaded query preview" />
+            {% else %}
+              <p>No preview available.</p>
+            {% endif %}
+          </div>
+
+          {% if results %}
+            <div>
+              <h2>Top matches</h2>
+              <div class="preview-grid">
+                {% for item in results %}
+                  <article class="preview-card">
+                    <img src="{{ item.preview }}" alt="Preview of {{ item.name }}" />
+                    <div>
+                      <div class="score">Score: {{ '%.3f'|format(item.score) }}</div>
+                      <div class="metrics">
+                        <span>ORB: {{ '%.3f'|format(item.orb) }}</span>
+                        <span>Histogram: {{ '%.3f'|format(item.histogram) }}</span>
+                        <span>SSIM: {{ '%.3f'|format(item.ssim) }}</span>
+                      </div>
+                    </div>
+                    <footer>{{ item.name }}</footer>
+                  </article>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <p>No candidate images could be processed.</p>
+          {% endif %}
+        </section>
+      {% endif %}
+    </main>
+  </body>
+</html>
