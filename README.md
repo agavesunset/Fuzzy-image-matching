@@ -51,7 +51,9 @@ python -m fuzzy_image_matching.cli ./examples/query.jpg ./examples/candidates --
 
 This will output the top three matches and show the individual metric contributions.
 
+
 ## Web UI
+
 
 Launch the browser-based interface with Flask:
 
@@ -60,6 +62,7 @@ python -m flask --app fuzzy_image_matching.webapp run
 ```
 
 Then open <http://localhost:5000> to upload a query image and one or more candidate images. You can adjust the metric weights and number of results directly in the interface, and the page will display previews and detailed scores for the best matches.
+
 
 ## Project Structure
 

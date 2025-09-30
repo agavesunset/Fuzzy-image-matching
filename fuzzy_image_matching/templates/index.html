@@ -151,6 +151,7 @@
         border: 1px solid #e2e8f0;
       }
 
+
       .no-preview {
         display: grid;
         place-items: center;
@@ -331,6 +332,7 @@
                     {% else %}
                       <div class="no-preview">Preview unavailable</div>
                     {% endif %}
+
                     <div>
                       <div class="score">Score: {{ '%.3f'|format(item.score) }}</div>
                       <div class="metrics">

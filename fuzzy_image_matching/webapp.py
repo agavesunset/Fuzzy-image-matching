@@ -9,7 +9,9 @@ import cv2
 import numpy as np
 from flask import Flask, render_template, request
 
+
 from .matching import FuzzyImageMatcher, ImageProcessingError
+
 
 
 DEFAULT_WEIGHTS: Tuple[float, float, float] = (0.4, 0.3, 0.3)
@@ -51,6 +53,7 @@ def create_app() -> Flask:
                 parsed_weights.append(value)
             weights = parsed_weights
 
+
             if sum(weights) <= 0:
                 errors.append("At least one weight must be greater than zero.")
 
@@ -80,6 +83,7 @@ def create_app() -> Flask:
                 errors.append("Please upload at least one candidate image.")
 
             if not errors and query_image is not None:
+
                 try:
                     matcher = FuzzyImageMatcher(weights=weights)
                 except ValueError as exc:
@@ -135,6 +139,7 @@ def create_app() -> Flask:
                         results = scored_results[: top_value if top_value > 0 else len(scored_results)]
                     else:
                         results = []
+
 
         return render_template(
             "index.html",

@@ -6,7 +6,9 @@ import argparse
 from pathlib import Path
 from typing import Iterable
 
+
 from .matching import FuzzyImageMatcher, ImageProcessingError
+
 
 
 class ExistingPath(argparse.Action):
@@ -57,10 +59,12 @@ def main(argv: list[str] | None = None) -> int:
     for candidate in args.candidates:
         candidate_files.extend(_iter_candidate_paths(Path(candidate)))
 
+
     try:
         results = matcher.match(args.query, candidate_files)
     except (FileNotFoundError, ImageProcessingError) as exc:
         parser.error(str(exc))
+
 
     top_n = args.top if args.top > 0 else len(results)
 
