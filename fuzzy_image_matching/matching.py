@@ -11,12 +11,17 @@ import numpy as np
 from skimage.metrics import structural_similarity
 
 
+class ImageProcessingError(Exception):
+    """Raised when an image cannot be processed for matching."""
+
+
 def _load_image(path: Path) -> np.ndarray:
     """Load an image from disk and ensure it is in BGR format."""
-    image = cv2.imread(str(path))
+    image = cv2.imread(str(path), cv2.IMREAD_UNCHANGED)
     if image is None:
         raise FileNotFoundError(f"Could not read image at {path}")
-    return image
+    return _ensure_bgr(image)
+
 
 
 def _ensure_gray(image: np.ndarray) -> np.ndarray:
@@ -24,6 +29,14 @@ def _ensure_gray(image: np.ndarray) -> np.ndarray:
         return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     return image
 
+
+def _ensure_bgr(image: np.ndarray) -> np.ndarray:
+    """Convert grayscale or BGRA images to BGR."""
+    if image.ndim == 2:
+        return cv2.cvtColor(image, cv2.COLOR_GRAY2BGR)
+    if image.shape[2] == 4:
+        return cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
+    return image
 
 def compute_orb_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
     """Compute similarity score based on ORB feature matching.
@@ -49,8 +62,12 @@ def compute_orb_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
 
 def compute_histogram_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
     """Compute similarity using color histograms."""
-    img1_hsv = cv2.cvtColor(img1, cv2.COLOR_BGR2HSV)
-    img2_hsv = cv2.cvtColor(img2, cv2.COLOR_BGR2HSV)
+    img1_bgr = _ensure_bgr(img1)
+    img2_bgr = _ensure_bgr(img2)
+
+    img1_hsv = cv2.cvtColor(img1_bgr, cv2.COLOR_BGR2HSV)
+    img2_hsv = cv2.cvtColor(img2_bgr, cv2.COLOR_BGR2HSV)
+
 
     hist_size = [8, 8, 8]
     ranges = [0, 180, 0, 256, 0, 256]
@@ -71,6 +88,9 @@ def compute_ssim_similarity(img1: np.ndarray, img2: np.ndarray) -> float:
     """Compute Structural Similarity Index (SSIM)."""
     gray1 = _ensure_gray(img1)
     gray2 = _ensure_gray(img2)
+    if gray1.size == 0 or gray2.size == 0:
+        raise ImageProcessingError("Cannot compare empty images")
+
     gray2_resized = cv2.resize(gray2, (gray1.shape[1], gray1.shape[0]))
     score, _ = structural_similarity(gray1, gray2_resized, full=True)
     return float(np.clip(score, 0.0, 1.0))
@@ -96,9 +116,15 @@ class FuzzyImageMatcher:
         self.weights = np.array(weights, dtype=np.float32)
 
     def score_pair(self, img1: np.ndarray, img2: np.ndarray) -> Tuple[float, float, float, float]:
-        orb = compute_orb_similarity(img1, img2)
-        hist = compute_histogram_similarity(img1, img2)
-        ssim = compute_ssim_similarity(img1, img2)
+        try:
+            orb = compute_orb_similarity(img1, img2)
+            hist = compute_histogram_similarity(img1, img2)
+            ssim = compute_ssim_similarity(img1, img2)
+        except cv2.error as exc:  # pragma: no cover - defensive
+            raise ImageProcessingError(f"OpenCV failed while scoring images: {exc}") from exc
+        except ValueError as exc:  # pragma: no cover - defensive
+            raise ImageProcessingError(str(exc)) from exc
+
         score = float(np.clip(np.dot(self.weights, np.array([orb, hist, ssim], dtype=np.float32)), 0.0, 1.0))
         return score, orb, hist, ssim
 

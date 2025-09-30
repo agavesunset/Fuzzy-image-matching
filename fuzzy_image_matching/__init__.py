@@ -2,6 +2,7 @@
 
 from .matching import (
     FuzzyImageMatcher,
+    ImageProcessingError,
     MatchResult,
     compute_histogram_similarity,
     compute_orb_similarity,
@@ -10,6 +11,7 @@ from .matching import (
 
 __all__ = [
     "FuzzyImageMatcher",
+    "ImageProcessingError",
     "MatchResult",
     "compute_histogram_similarity",
     "compute_orb_similarity",

@@ -151,6 +151,21 @@
         border: 1px solid #e2e8f0;
       }
 
+
+      .no-preview {
+        display: grid;
+        place-items: center;
+        width: 100%;
+        height: 200px;
+        border-radius: 12px;
+        border: 1px dashed #cbd5f5;
+        background: rgba(226, 232, 240, 0.45);
+        color: #475569;
+        font-size: 0.95rem;
+        text-align: center;
+        padding: 0 1rem;
+      }
+
       .score {
         font-size: 1.1rem;
         font-weight: 600;
@@ -202,6 +217,12 @@
         .preview-card {
           background: rgba(15, 23, 42, 0.8);
           border: 1px solid #1e293b;
+        }
+
+        .no-preview {
+          border-color: rgba(148, 163, 184, 0.45);
+          background: rgba(30, 41, 59, 0.55);
+          color: #cbd5f5;
         }
 
         .message {
@@ -306,7 +327,12 @@
               <div class="preview-grid">
                 {% for item in results %}
                   <article class="preview-card">
-                    <img src="{{ item.preview }}" alt="Preview of {{ item.name }}" />
+                    {% if item.preview %}
+                      <img src="{{ item.preview }}" alt="Preview of {{ item.name }}" />
+                    {% else %}
+                      <div class="no-preview">Preview unavailable</div>
+                    {% endif %}
+
                     <div>
                       <div class="score">Score: {{ '%.3f'|format(item.score) }}</div>
                       <div class="metrics">

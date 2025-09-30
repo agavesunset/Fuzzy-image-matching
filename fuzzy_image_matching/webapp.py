@@ -1,4 +1,5 @@
 """Simple web UI for fuzzy image matching."""
+
 from __future__ import annotations
 
 import base64
@@ -8,7 +9,9 @@ import cv2
 import numpy as np
 from flask import Flask, render_template, request
 
-from .matching import FuzzyImageMatcher
+
+from .matching import FuzzyImageMatcher, ImageProcessingError
+
 
 
 DEFAULT_WEIGHTS: Tuple[float, float, float] = (0.4, 0.3, 0.3)
@@ -50,6 +53,10 @@ def create_app() -> Flask:
                 parsed_weights.append(value)
             weights = parsed_weights
 
+
+            if sum(weights) <= 0:
+                errors.append("At least one weight must be greater than zero.")
+
             top_raw = request.form.get("top", str(top_value)).strip()
             try:
                 top_value = int(top_raw)
@@ -76,34 +83,63 @@ def create_app() -> Flask:
                 errors.append("Please upload at least one candidate image.")
 
             if not errors and query_image is not None:
-                matcher = FuzzyImageMatcher(weights=weights)
-                scored_results = []
-                for storage in candidate_files:
-                    try:
-                        candidate_image = _file_to_image(storage)
-                    except ValueError:
-                        errors.append(
-                            f"Could not read candidate image: {storage.filename or 'Unnamed file'}."
+
+                try:
+                    matcher = FuzzyImageMatcher(weights=weights)
+                except ValueError as exc:
+                    errors.append(str(exc))
+                    matcher = None
+
+                if matcher is not None:
+                    scored_results = []
+                    for storage in candidate_files:
+                        try:
+                            candidate_image = _file_to_image(storage)
+                        except ValueError:
+                            errors.append(
+                                f"Could not read candidate image: {storage.filename or 'Unnamed file'}."
+                            )
+                            continue
+
+                        try:
+                            score, orb, hist, ssim = matcher.score_pair(query_image, candidate_image)
+                        except ImageProcessingError as exc:
+                            errors.append(
+                                f"Failed to compare {storage.filename or 'candidate image'}: {exc}"
+                            )
+                            continue
+                        except Exception as exc:  # pragma: no cover - defensive
+                            app.logger.exception("Unexpected error while scoring image")
+                            errors.append(
+                                f"An unexpected error occurred while scoring {storage.filename or 'a candidate image'}."
+                            )
+                            continue
+
+                        try:
+                            preview = _image_to_data_url(candidate_image)
+                        except ValueError:
+                            errors.append(
+                                f"Could not generate preview for {storage.filename or 'a candidate image'}."
+                            )
+                            preview = None
+
+                        scored_results.append(
+                            {
+                                "name": storage.filename or "Candidate",
+                                "score": score,
+                                "orb": orb,
+                                "histogram": hist,
+                                "ssim": ssim,
+                                "preview": preview,
+                            }
                         )
-                        continue
 
-                    score, orb, hist, ssim = matcher.score_pair(query_image, candidate_image)
-                    scored_results.append(
-                        {
-                            "name": storage.filename or "Candidate",
-                            "score": score,
-                            "orb": orb,
-                            "histogram": hist,
-                            "ssim": ssim,
-                            "preview": _image_to_data_url(candidate_image),
-                        }
-                    )
+                    if scored_results:
+                        scored_results.sort(key=lambda item: item["score"], reverse=True)
+                        results = scored_results[: top_value if top_value > 0 else len(scored_results)]
+                    else:
+                        results = []
 
-                if scored_results:
-                    scored_results.sort(key=lambda item: item["score"], reverse=True)
-                    results = scored_results[: top_value if top_value > 0 else len(scored_results)]
-                else:
-                    results = []
 
         return render_template(
             "index.html",

@@ -9,7 +9,6 @@ A Python utility for fuzzy image matching using a combination of ORB feature mat
 - Command line interface for quick usage.
 - Minimal web UI for running comparisons without the terminal.
 
-
 ## Requirements
 
 - Python 3.9+
@@ -52,6 +51,8 @@ python -m fuzzy_image_matching.cli ./examples/query.jpg ./examples/candidates --
 
 This will output the top three matches and show the individual metric contributions.
 
+
+## Web UI
 
 
 Launch the browser-based interface with Flask:
