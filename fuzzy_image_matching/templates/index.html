@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fuzzy Image Matcher</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        padding: 2rem;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at top, #1e293b 0%, #0f172a 55%, #020617 100%);
+        color: #f8fafc;
+      }
+
+      main {
+        width: min(1120px, 100%);
+        display: grid;
+        gap: 2rem;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 3rem);
+        font-weight: 700;
+      }
+
+      header p {
+        margin: 0.75rem 0 0;
+        color: rgba(226, 232, 240, 0.72);
+        max-width: 640px;
+        line-height: 1.6;
+      }
+
+      .layout {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        align-items: flex-start;
+      }
+
+      .panel {
+        flex: 1 1 320px;
+        background: rgba(15, 23, 42, 0.78);
+        border: 1px solid rgba(148, 163, 184, 0.1);
+        box-shadow: 0 22px 45px rgba(8, 11, 26, 0.4);
+        border-radius: 22px;
+        padding: 1.75rem;
+        backdrop-filter: blur(12px);
+      }
+
+      form {
+        display: grid;
+        gap: 1.5rem;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 1.1rem;
+      }
+
+      .field label {
+        display: block;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: rgba(241, 245, 249, 0.86);
+        margin-bottom: 0.4rem;
+      }
+
+      .field input[type="file"],
+      .field input[type="number"] {
+        width: 100%;
+        border-radius: 14px;
+        padding: 0.85rem 1rem;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.55);
+        color: inherit;
+        font-size: 1rem;
+      }
+
+      .field input[type="file"] {
+        padding: 0.65rem 1rem;
+      }
+
+      .field input[type="number"] {
+        -moz-appearance: textfield;
+      }
+
+      .field input[type="number"]::-webkit-outer-spin-button,
+      .field input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 1rem;
+      }
+
+      button[type="submit"] {
+        appearance: none;
+        border: none;
+        border-radius: 999px;
+        background: linear-gradient(135deg, #60a5fa, #2563eb);
+        padding: 0.85rem 1.9rem;
+        font-weight: 600;
+        font-size: 1rem;
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.75rem;
+        box-shadow: 0 18px 38px rgba(37, 99, 235, 0.35);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      button[type="submit"]:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 24px 46px rgba(37, 99, 235, 0.4);
+      }
+
+      button[type="submit"]:disabled {
+        cursor: progress;
+        opacity: 0.7;
+        box-shadow: none;
+      }
+
+      .btn-label {
+        white-space: nowrap;
+      }
+
+      .btn-spinner {
+        width: 1rem;
+        height: 1rem;
+        border-radius: 999px;
+        border: 2px solid rgba(255, 255, 255, 0.45);
+        border-top-color: #fff;
+        animation: spin 0.9s linear infinite;
+        display: none;
+      }
+
+      button[aria-busy="true"] .btn-spinner {
+        display: inline-block;
+      }
+
+      button[aria-busy="true"] .btn-label {
+        opacity: 0.7;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .messages {
+        display: grid;
+        gap: 0.75rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .message {
+        padding: 0.8rem 1rem;
+        border-radius: 12px;
+        background: rgba(248, 113, 113, 0.16);
+        border: 1px solid rgba(248, 113, 113, 0.35);
+        color: #fecaca;
+        font-size: 0.95rem;
+      }
+
+      .results-panel h2 {
+        margin: 0;
+        font-size: 1.4rem;
+      }
+
+      .results-intro {
+        margin: 0.35rem 0 1.25rem;
+        color: rgba(226, 232, 240, 0.72);
+        font-size: 0.95rem;
+        line-height: 1.6;
+      }
+
+      .query-preview {
+        margin-bottom: 1.4rem;
+        display: none;
+      }
+
+      .query-preview[aria-hidden="false"] {
+        display: block;
+      }
+
+      .query-preview img {
+        width: 100%;
+        max-width: 320px;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        box-shadow: 0 16px 32px rgba(8, 11, 26, 0.55);
+      }
+
+      .results-list {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .result-card {
+        display: grid;
+        gap: 0.85rem;
+        background: rgba(15, 23, 42, 0.62);
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 18px;
+        padding: 1rem;
+      }
+
+      .result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      .result-name {
+        font-weight: 600;
+        font-size: 1.05rem;
+      }
+
+      .result-score {
+        font-weight: 600;
+        color: #60a5fa;
+        font-size: 1.05rem;
+      }
+
+      .preview-wrapper {
+        position: relative;
+      }
+
+      .result-preview {
+        width: 100%;
+        max-height: 220px;
+        border-radius: 14px;
+        object-fit: cover;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+      }
+
+      .no-preview {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 180px;
+        border-radius: 14px;
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        color: rgba(226, 232, 240, 0.7);
+        background: rgba(15, 23, 42, 0.35);
+        font-size: 0.95rem;
+        padding: 1.2rem;
+        text-align: center;
+      }
+
+      .no-preview[hidden],
+      .result-preview[hidden] {
+        display: none;
+      }
+
+      .metric-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        color: rgba(226, 232, 240, 0.8);
+        font-size: 0.92rem;
+      }
+
+      .metric {
+        background: rgba(37, 99, 235, 0.18);
+        border-radius: 999px;
+        padding: 0.35rem 0.65rem;
+      }
+
+      .empty-state {
+        border: 1px dashed rgba(148, 163, 184, 0.35);
+        background: rgba(15, 23, 42, 0.38);
+        padding: 1.25rem;
+        border-radius: 16px;
+        text-align: center;
+        color: rgba(226, 232, 240, 0.7);
+        font-size: 0.95rem;
+      }
+
+      .helper-text {
+        color: rgba(226, 232, 240, 0.65);
+        font-size: 0.88rem;
+      }
+
+      noscript {
+        display: block;
+        margin-top: 1.5rem;
+        padding: 0.85rem 1rem;
+        background: rgba(248, 191, 50, 0.18);
+        border: 1px solid rgba(248, 191, 50, 0.35);
+        border-radius: 12px;
+        color: #fde68a;
+        font-size: 0.9rem;
+      }
+
+      @media (max-width: 960px) {
+        body {
+          padding: 1.5rem;
+        }
+
+        .layout {
+          flex-direction: column;
+        }
+
+        .actions {
+          justify-content: stretch;
+        }
+
+        button[type="submit"] {
+          width: 100%;
+          justify-content: center;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Fuzzy Image Matcher</h1>
+        <p>
+          Upload a query image and one or more candidates to compare them using ORB
+          features, colour histograms, and SSIM. Adjust the weights to emphasise the
+          metrics that matter most for your search.
+        </p>
+      </header>
+
+      <div class="layout">
+        <section class="panel" aria-label="Upload images">
+          <form id="compare-form" method="post" enctype="multipart/form-data">
+            <div class="form-grid">
+              <div class="field">
+                <label for="query">Query image</label>
+                <input id="query" type="file" name="query" accept="image/*" required />
+              </div>
+
+              <div class="field">
+                <label for="candidates">Candidate images</label>
+                <input
+                  id="candidates"
+                  type="file"
+                  name="candidates"
+                  accept="image/*"
+                  multiple
+                  required
+                />
+                <p class="helper-text">Select one or more files. JPEG, PNG, and WebP are supported.</p>
+              </div>
+
+              <div class="split">
+                <div class="field">
+                  <label for="weight_orb">ORB weight</label>
+                  <input
+                    id="weight_orb"
+                    type="number"
+                    name="weight_orb"
+                    step="0.05"
+                    min="0"
+                    value="{{ '%.2f'|format(weights[0]) }}"
+                    data-weight-index="0"
+                  />
+                </div>
+                <div class="field">
+                  <label for="weight_hist">Histogram weight</label>
+                  <input
+                    id="weight_hist"
+                    type="number"
+                    name="weight_hist"
+                    step="0.05"
+                    min="0"
+                    value="{{ '%.2f'|format(weights[1]) }}"
+                    data-weight-index="1"
+                  />
+                </div>
+                <div class="field">
+                  <label for="weight_ssim">SSIM weight</label>
+                  <input
+                    id="weight_ssim"
+                    type="number"
+                    name="weight_ssim"
+                    step="0.05"
+                    min="0"
+                    value="{{ '%.2f'|format(weights[2]) }}"
+                    data-weight-index="2"
+                  />
+                </div>
+                <div class="field">
+                  <label for="top">Top results</label>
+                  <input id="top" type="number" name="top" min="1" value="{{ top }}" />
+                </div>
+              </div>
+            </div>
+
+            <div class="actions">
+              <button id="submit-button" type="submit" aria-busy="false">
+                <span class="btn-label">Compare images</span>
+                <span class="btn-spinner" aria-hidden="true"></span>
+              </button>
+            </div>
+          </form>
+          <noscript>提交表单后页面会重新加载以显示结果。</noscript>
+        </section>
+
+        <section class="panel results-panel" aria-live="polite">
+          <h2>Results</h2>
+          <p class="results-intro">
+            Matches appear here after the comparison completes. You can keep the page open
+            and try different weight combinations without losing the previous results.
+          </p>
+
+          <div id="messages" class="messages" role="alert">
+            {% if errors %}
+              {% for message in errors %}
+                <div class="message">{{ message }}</div>
+              {% endfor %}
+            {% endif %}
+          </div>
+
+          <div id="query-preview" class="query-preview" aria-hidden="{{ 'false' if query_preview else 'true' }}">
+            <h3>Query preview</h3>
+            {% if query_preview %}
+              <img id="query-preview-img" src="{{ query_preview }}" alt="Preview of the uploaded query image" />
+            {% else %}
+              <img id="query-preview-img" alt="" hidden />
+            {% endif %}
+          </div>
+
+          <div
+            id="results"
+            class="results-list"
+            data-placeholder="{{ placeholder_text }}"
+            aria-live="polite"
+          >
+            {% if submitted %}
+              {% if results %}
+                {% for item in results %}
+                  <article class="result-card">
+                    <div class="result-header">
+                      <span class="result-name">{{ item.name }}</span>
+                      <span class="result-score">Score {{ '%.3f'|format(item.score) }}</span>
+                    </div>
+                    <div class="preview-wrapper">
+                      {% if item.preview %}
+                        <img
+                          class="result-preview"
+                          src="{{ item.preview }}"
+                          alt="Preview of {{ item.name }}"
+                        />
+                      {% else %}
+                        <div class="no-preview">Preview unavailable</div>
+                      {% endif %}
+                    </div>
+                    <div class="metric-list">
+                      <span class="metric">ORB {{ '%.3f'|format(item.orb) }}</span>
+                      <span class="metric">Histogram {{ '%.3f'|format(item.histogram) }}</span>
+                      <span class="metric">SSIM {{ '%.3f'|format(item.ssim) }}</span>
+                    </div>
+                  </article>
+                {% endfor %}
+              {% else %}
+                <p class="empty-state">No matches were returned for this comparison.</p>
+              {% endif %}
+            {% else %}
+              <p class="empty-state" id="results-placeholder">{{ placeholder_text }}</p>
+            {% endif %}
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <template id="result-card-template">
+      <article class="result-card">
+        <div class="result-header">
+          <span class="result-name"></span>
+          <span class="result-score"></span>
+        </div>
+        <div class="preview-wrapper">
+          <img class="result-preview" alt="" />
+          <div class="no-preview" hidden>Preview unavailable</div>
+        </div>
+        <div class="metric-list">
+          <span class="metric metric-orb"></span>
+          <span class="metric metric-hist"></span>
+          <span class="metric metric-ssim"></span>
+        </div>
+      </article>
+    </template>
+
+    <script>
+      const form = document.getElementById("compare-form");
+      const submitButton = document.getElementById("submit-button");
+      const messages = document.getElementById("messages");
+      const resultsList = document.getElementById("results");
+      const queryPreview = document.getElementById("query-preview");
+      const queryPreviewImage = document.getElementById("query-preview-img");
+      const weightInputs = Array.from(document.querySelectorAll("[data-weight-index]"));
+      const topInput = document.getElementById("top");
+      const defaultPlaceholder = resultsList?.dataset?.placeholder || "";
+      const resultTemplate = document.getElementById("result-card-template");
+      const initialPayload = {{ initial_payload | tojson }};
+      const initialWeights = weightInputs.map((input) => Number.parseFloat(input.value) || 0);
+      const initialTop = Number.parseInt(topInput?.value || "5", 10) || 5;
+
+      function setBusy(isBusy) {
+        if (!submitButton) return;
+        submitButton.disabled = isBusy;
+        submitButton.setAttribute("aria-busy", isBusy ? "true" : "false");
+      }
+
+      function showMessages(list) {
+        if (!messages) return;
+        messages.innerHTML = "";
+        if (!list || !list.length) {
+          return;
+        }
+        list.forEach((message) => {
+          const div = document.createElement("div");
+          div.className = "message";
+          div.textContent = message;
+          messages.appendChild(div);
+        });
+      }
+
+      function updateWeights(weights) {
+        if (!Array.isArray(weights) || weightInputs.length === 0) {
+          return;
+        }
+        weightInputs.forEach((input, index) => {
+          if (!input) return;
+          const value = Number.parseFloat(weights[index]);
+          if (!Number.isFinite(value)) return;
+          input.value = value.toFixed(2);
+        });
+      }
+
+      function updateTop(topValue) {
+        if (!topInput) return;
+        const value = Number.parseInt(topValue, 10);
+        if (!Number.isFinite(value) || value <= 0) {
+          return;
+        }
+        topInput.value = String(value);
+      }
+
+      function updateQueryPreview(src) {
+        if (!queryPreview || !queryPreviewImage) return;
+        if (src) {
+          queryPreview.setAttribute("aria-hidden", "false");
+          queryPreviewImage.removeAttribute("hidden");
+          queryPreviewImage.src = src;
+          queryPreviewImage.alt = "Preview of the uploaded query image";
+        } else {
+          queryPreview.setAttribute("aria-hidden", "true");
+          queryPreviewImage.setAttribute("hidden", "");
+          queryPreviewImage.removeAttribute("src");
+          queryPreviewImage.alt = "";
+        }
+      }
+
+      function renderResults(results) {
+        if (!resultsList) return;
+        resultsList.innerHTML = "";
+        if (!results || results.length === 0) {
+          if (defaultPlaceholder) {
+            const empty = document.createElement("p");
+            empty.className = "empty-state";
+            empty.textContent = "No matches were returned for this comparison.";
+            resultsList.appendChild(empty);
+          }
+          return;
+        }
+
+        results.forEach((item) => {
+          const fragment = resultTemplate.content.cloneNode(true);
+          const card = fragment.querySelector(".result-card");
+          const name = fragment.querySelector(".result-name");
+          const score = fragment.querySelector(".result-score");
+          const orbMetric = fragment.querySelector(".metric-orb");
+          const histMetric = fragment.querySelector(".metric-hist");
+          const ssimMetric = fragment.querySelector(".metric-ssim");
+          const preview = fragment.querySelector(".result-preview");
+          const fallback = fragment.querySelector(".no-preview");
+
+          if (name) name.textContent = item.name || "Candidate";
+          if (score) score.textContent = `Score ${Number.parseFloat(item.score || 0).toFixed(3)}`;
+          if (orbMetric) orbMetric.textContent = `ORB ${Number.parseFloat(item.orb || 0).toFixed(3)}`;
+          if (histMetric) {
+            histMetric.textContent = `Histogram ${Number.parseFloat(item.histogram || item.hist || 0).toFixed(3)}`;
+          }
+          if (ssimMetric) ssimMetric.textContent = `SSIM ${Number.parseFloat(item.ssim || 0).toFixed(3)}`;
+
+          if (item.preview && preview) {
+            preview.hidden = false;
+            preview.src = item.preview;
+            preview.alt = `Preview of ${item.name || "candidate image"}`;
+            if (fallback) fallback.hidden = true;
+          } else {
+            if (preview) {
+              preview.hidden = true;
+              preview.removeAttribute("src");
+            }
+            if (fallback) fallback.hidden = false;
+          }
+
+          resultsList.appendChild(fragment);
+        });
+      }
+
+      function applyPayload(payload, { fromServer = false } = {}) {
+        if (!payload) return;
+        const errors = Array.isArray(payload.errors) ? payload.errors : [];
+        showMessages(errors);
+        updateWeights(payload.weights || initialWeights);
+        updateTop(payload.top ?? initialTop);
+        updateQueryPreview(payload.query_preview);
+
+        const shouldRenderResults =
+          (payload.submitted && errors.length === 0) ||
+          (Array.isArray(payload.results) && payload.results.length > 0) ||
+          (fromServer && payload.submitted);
+
+        if (shouldRenderResults) {
+          renderResults(payload.results || []);
+        } else if (fromServer && !payload.submitted) {
+          if (resultsList && defaultPlaceholder) {
+            resultsList.innerHTML = "";
+            const empty = document.createElement("p");
+            empty.className = "empty-state";
+            empty.textContent = defaultPlaceholder;
+            resultsList.appendChild(empty);
+          }
+        } else if (errors.length > 0 && !fromServer) {
+          // Preserve previous successful results on validation errors.
+        }
+      }
+
+      async function handleSubmit(event) {
+        event.preventDefault();
+        if (!form) return;
+        const formData = new FormData(form);
+        setBusy(true);
+        showMessages([]);
+        if (resultsList && defaultPlaceholder) {
+          resultsList.innerHTML = "";
+          const pending = document.createElement("p");
+          pending.className = "empty-state";
+          pending.textContent = "Comparing images…";
+          resultsList.appendChild(pending);
+        }
+
+        try {
+          const response = await fetch(form.action || window.location.pathname, {
+            method: "POST",
+            body: formData,
+            headers: {
+              Accept: "application/json",
+            },
+          });
+
+          const data = await response.json().catch(() => null);
+          if (data) {
+            applyPayload(data);
+          }
+
+          if (!response.ok && (!data || !(data.errors && data.errors.length))) {
+            showMessages(["The comparison failed. Please try again."]);
+          }
+        } catch (error) {
+          showMessages(["Could not reach the server. Check your connection and try again."]);
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      if (form) {
+        form.addEventListener("submit", handleSubmit);
+      }
+
+      window.addEventListener("DOMContentLoaded", () => {
+        if (initialPayload) {
+          applyPayload(initialPayload, { fromServer: true });
+        }
+      });
+    </script>
+  </body>
+</html>
